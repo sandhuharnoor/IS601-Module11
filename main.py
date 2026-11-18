@@ -56,6 +56,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"error": error_messages},
     )
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 @app.get("/")
 async def read_root(request: Request):
     """

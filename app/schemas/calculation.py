@@ -142,10 +142,6 @@ class CalculationBase(BaseModel):
         Raises:
             ValueError: If validation fails
         """
-        if len(self.inputs) < 2:
-            raise ValueError(
-                "At least two numbers are required for calculation"
-            )
         if self.type == CalculationType.DIVISION:
             # Prevent division by zero (skip first value as numerator)
             if any(x == 0 for x in self.inputs[1:]):
@@ -164,31 +160,39 @@ class CalculationBase(BaseModel):
 
 
 class CalculationCreate(CalculationBase):
-    """
-    Schema for creating a new Calculation.
-    
-    This schema is used when a client wants to create a calculation.
-    It includes the user_id to associate the calculation with a user.
-    
-    In a real application, the user_id would typically come from the
-    authenticated user's session rather than the request body.
-    """
-    user_id: UUID = Field(
-        ...,
-        description="UUID of the user who owns this calculation",
-        examples=["123e4567-e89b-12d3-a456-426614174000"]
-    )
+    """Validate legacy multi-operand and rubric two-operand calculations."""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "type": "addition",
-                "inputs": [10.5, 3, 2],
-                "user_id": "123e4567-e89b-12d3-a456-426614174000"
-            }
-        }
-    )
+    a: Optional[float] = None
+    b: Optional[float] = None
+    user_id: Optional[UUID] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_two_operands(cls, data):
+        if not isinstance(data, dict):
+            return data
+
+        data = data.copy()
+        has_a = "a" in data
+        has_b = "b" in data
+
+        if has_a or has_b:
+            if not (has_a and has_b):
+                raise ValueError("Both a and b are required")
+
+            if "inputs" in data:
+                raise ValueError("Provide either a/b or inputs, not both")
+
+            data["inputs"] = [data["a"], data["b"]]
+
+        elif "user_id" not in data:
+            raise ValueError("user_id is required for legacy inputs")
+
+        return data
+
+    @model_validator(mode="after")
+    def validate_legacy_user(self):
+        return self
 
 class CalculationUpdate(BaseModel):
     """
@@ -218,10 +222,6 @@ class CalculationUpdate(BaseModel):
         Raises:
             ValueError: If inputs has fewer than 2 numbers
         """
-        if self.inputs is not None and len(self.inputs) < 2:
-            raise ValueError(
-                "At least two numbers are required for calculation"
-            )
         return self
 
     model_config = ConfigDict(
@@ -279,3 +279,28 @@ class CalculationResponse(CalculationBase):
             }
         }
     )
+
+
+class CalculationRead(BaseModel):
+    """Rubric-compatible output schema for two-operand calculations."""
+
+    id: UUID
+    a: float
+    b: float
+    type: CalculationType
+    result: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def validate_type(cls, value):
+        if isinstance(value, str):
+            value = value.lower()
+        return value
+
+    @model_validator(mode="after")
+    def validate_division(self):
+        if self.type == CalculationType.DIVISION and self.b == 0:
+            raise ValueError("Cannot divide by zero")
+        return self

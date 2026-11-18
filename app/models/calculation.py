@@ -103,6 +103,16 @@ class AbstractCalculation:
         )
 
     @declared_attr
+    def a(cls):
+        """First operand for two-number calculations."""
+        return Column(Float, nullable=True)
+
+    @declared_attr
+    def b(cls):
+        """Second operand for two-number calculations."""
+        return Column(Float, nullable=True)
+
+    @declared_attr
     def result(cls):
         """
         The computed result of the calculation.
@@ -186,7 +196,14 @@ class AbstractCalculation:
             raise ValueError(
                 f"Unsupported calculation type: {calculation_type}"
             )
-        return calculation_class(user_id=user_id, inputs=inputs)
+        operands = {}
+        if isinstance(inputs, list) and len(inputs) == 2:
+            operands = {"a": inputs[0], "b": inputs[1]}
+        return calculation_class(
+            user_id=user_id,
+            inputs=inputs,
+            **operands
+        )
 
     def get_result(self) -> float:
         """

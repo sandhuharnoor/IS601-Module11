@@ -5,3 +5,22 @@ __pycache__/
 .coverage
 .pytest_cache
 htmlcov
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Local backups
+*.bak
+
+# Test artifacts
+test-results/

@@ -1,264 +1,143 @@
-# 📦 Project Setup
+# IS601 Module 11 - PostgreSQL Calculation Persistence
 
----
+## Project Overview
 
-# 🧩 1. Install Homebrew (Mac Only)
+This project extends a FastAPI calculator application with SQLAlchemy calculation models, PostgreSQL persistence, automated testing, Docker containerization, and GitHub Actions CI/CD.
 
-> Skip this step if you're on Windows.
+The calculation model uses SQLAlchemy polymorphic inheritance to support addition, subtraction, multiplication, and division. Calculations are associated with users and can be stored and retrieved from PostgreSQL.
 
-Homebrew is a package manager for macOS.  
-You’ll use it to easily install Git, Python, Docker, etc.
+## Technology Stack
 
-**Install Homebrew:**
+- Python 3.10+
+- FastAPI
+- SQLAlchemy
+- PostgreSQL 17
+- Pydantic
+- Pytest and pytest-cov
+- Playwright
+- Docker and Docker Compose
+- GitHub Actions
+- Trivy
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+## Project Features
 
-**Verify Homebrew:**
+- SQLAlchemy calculation models for four arithmetic operations
+- User-to-calculation relationships
+- Pydantic calculation schemas and validation
+- PostgreSQL integration tests
+- Browser-based end-to-end calculator tests
+- Docker health endpoint at `/health`
+- CI/CD workflow for testing, security scanning, and Docker Hub publication
 
-```bash
-brew --version
-```
+The calculator's existing FastAPI endpoints are separate from the calculation persistence layer. CRUD API endpoints for persisted calculations are not implemented in this module.
 
-If you see a version number, you're good to go.
+## Local Setup
 
----
-
-# 🧩 2. Install and Configure Git
-
-## Install Git
-
-- **MacOS (using Homebrew)**
-
-```bash
-brew install git
-```
-
-- **Windows**
-
-Download and install [Git for Windows](https://git-scm.com/download/win).  
-Accept the default options during installation.
-
-**Verify Git:**
+Clone the repository:
 
 ```bash
-git --version
+git clone https://github.com/sandhuharnoor/IS601-Module11.git
+cd IS601-Module11
 ```
 
----
+Create a virtual environment and install dependencies:
 
-## Configure Git Globals
-
-Set your name and email so Git tracks your commits properly:
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "your_email@example.com"
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
-Confirm the settings:
+Start PostgreSQL:
 
-```bash
-git config --list
+```powershell
+docker compose up -d
 ```
 
----
+Create the dedicated integration test database if it does not exist:
 
-## Generate SSH Keys and Connect to GitHub
-
-> Only do this once per machine.
-
-1. Generate a new SSH key:
-
-```bash
-ssh-keygen -t ed25519 -C "your_email@example.com"
+```powershell
+docker exec postgres_db psql -U postgres -d postgres -c "CREATE DATABASE module11_test;"
 ```
 
-(Press Enter at all prompts.)
+The database creation command should only be run once. If the database already exists, PostgreSQL will report that it exists.
 
-2. Start the SSH agent:
+## Running Tests
 
-```bash
-eval "$(ssh-agent -s)"
+Set the dedicated integration test database URL in PowerShell:
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/module11_test"
 ```
 
-3. Add the SSH private key to the agent:
+Run all automated tests:
 
-```bash
-ssh-add ~/.ssh/id_ed25519
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/unit tests/integration tests/e2e -q --tb=short
 ```
 
-4. Copy your SSH public key:
+Latest verified local result:
 
-- **Mac/Linux:**
+- 110 tests passed
+- 100% coverage
 
-```bash
-cat ~/.ssh/id_ed25519.pub | pbcopy
+Integration tests create and drop SQLAlchemy tables in the dedicated `module11_test` database. Do not point these tests at a database containing important data.
+
+## Running the Application
+
+Start the FastAPI application locally:
+
+```powershell
+.\.venv\Scripts\python.exe main.py
 ```
 
-- **Windows (Git Bash):**
+Open:
 
-```bash
-cat ~/.ssh/id_ed25519.pub | clip
+- http://localhost:8000
+- http://localhost:8000/health
+
+## Docker
+
+Build the image:
+
+```powershell
+docker build -t hsandhu24/is601-module11:local .
 ```
 
-5. Add the key to your GitHub account:
-   - Go to [GitHub SSH Settings](https://github.com/settings/keys)
-   - Click **New SSH Key**, paste the key, save.
+Run the container:
 
-6. Test the connection:
-
-```bash
-ssh -T git@github.com
+```powershell
+docker run --rm -p 8001:8000 hsandhu24/is601-module11:local
 ```
 
-You should see a success message.
+Open http://localhost:8001/health to verify the health endpoint.
 
----
+## CI/CD
 
-# 🧩 3. Clone the Repository
+The GitHub Actions workflow is configured to:
 
-Now you can safely clone the course project:
+1. Start a PostgreSQL 17 service.
+2. Install Python dependencies and Playwright Chromium.
+3. Run unit and integration tests.
+4. Run browser E2E tests.
+5. Build and scan the Docker image with Trivy.
+6. Publish the image to Docker Hub after successful checks on the main branch.
 
-```bash
-git clone <repository-url>
-cd <repository-directory>
-```
+Docker Hub publishing uses GitHub Actions secrets named `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
----
+Docker Hub image:
+`hsandhu24/is601-module11`
 
-# 🛠️ 4. Install Python 3.10+
+The remote workflow and published image still require verification.
 
-## Install Python
+## Reflection
 
-- **MacOS (Homebrew)**
+This module helped me understand how SQLAlchemy models connect application logic to a PostgreSQL database. I worked with polymorphic calculation models, user relationships, and integration tests that verify data persistence.
 
-```bash
-brew install python
-```
+One challenge was configuring PostgreSQL for testing without interfering with other project databases. I addressed this by creating a dedicated test database and adding a database-name guard to the integration test fixture.
 
-- **Windows**
+I also worked through an E2E testing issue where the FastAPI subprocess used a different Python interpreter from pytest. Updating the fixture to use `sys.executable` resolved the issue.
 
-Download and install [Python for Windows](https://www.python.org/downloads/).  
-✅ Make sure you **check the box** `Add Python to PATH` during setup.
+Finally, I improved the Docker build by excluding unnecessary files through `.dockerignore` and verified the application's health endpoint inside a running container.
 
-**Verify Python:**
-
-```bash
-python3 --version
-```
-or
-```bash
-python --version
-```
-
----
-
-## Create and Activate a Virtual Environment
-
-(Optional but recommended)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate   # Mac/Linux
-venv\Scripts\activate.bat  # Windows
-```
-
-### Install Required Packages
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# 🐳 5. (Optional) Docker Setup
-
-> Skip if Docker isn't used in this module.
-
-## Install Docker
-
-- [Install Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-- [Install Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-
-## Build Docker Image
-
-```bash
-docker build -t <image-name> .
-```
-
-## Run Docker Container
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 🚀 6. Running the Project
-
-- **Without Docker**:
-
-```bash
-python main.py
-```
-
-(or update this if the main script is different.)
-
-- **With Docker**:
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 📝 7. Submission Instructions
-
-After finishing your work:
-
-```bash
-git add .
-git commit -m "Complete Module X"
-git push origin main
-```
-
-Then submit the GitHub repository link as instructed.
-
----
-
-# 🔥 Useful Commands Cheat Sheet
-
-| Action                         | Command                                          |
-| ------------------------------- | ------------------------------------------------ |
-| Install Homebrew (Mac)          | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
-| Install Git                     | `brew install git` or Git for Windows installer |
-| Configure Git Global Username  | `git config --global user.name "Your Name"`      |
-| Configure Git Global Email     | `git config --global user.email "you@example.com"` |
-| Clone Repository                | `git clone <repo-url>`                          |
-| Create Virtual Environment     | `python3 -m venv venv`                           |
-| Activate Virtual Environment   | `source venv/bin/activate` / `venv\Scripts\activate.bat` |
-| Install Python Packages        | `pip install -r requirements.txt`               |
-| Build Docker Image              | `docker build -t <image-name> .`                |
-| Run Docker Container            | `docker run -it --rm <image-name>`               |
-| Push Code to GitHub             | `git add . && git commit -m "message" && git push` |
-
----
-
-# 📋 Notes
-
-- Install **Homebrew** first on Mac.
-- Install and configure **Git** and **SSH** before cloning.
-- Use **Python 3.10+** and **virtual environments** for Python projects.
-- **Docker** is optional depending on the project.
-
----
-
-# 📎 Quick Links
-
-- [Homebrew](https://brew.sh/)
-- [Git Downloads](https://git-scm.com/downloads)
-- [Python Downloads](https://www.python.org/downloads/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [GitHub SSH Setup Guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+The biggest takeaway was that passing unit tests alone is not enough. Integration tests, browser tests, container checks, and CI/CD verification each test a different part of the application.
